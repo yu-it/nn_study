@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from decimal import Decimal
 import numpy as np
 import matplotlib.pyplot as plt
 from chainer import reporter
@@ -45,15 +46,15 @@ class nn(Chain):
         super(nn, self).__init__(
             li=F.Linear(input_dim, hidden_dim),
             lh=F.Linear(hidden_dim,hidden_dim),
-            lh2=F.Linear(hidden_dim,hidden_dim),
+            #lh2=F.Linear(hidden_dim,hidden_dim),
             lo=F.Linear(hidden_dim, output_dim)
         )
 
         self.afi = self.__activation_func(input_af)
         self.afh = self.__activation_func(hidden_af)
-        self.afh2 = self.__activation_func(hidden_af)
-        if hidden2_af <> None:
-            self.afh2 = self.__activation_func(hidden2_af)
+        #self.afh2 = self.__activation_func(hidden_af)
+        #if hidden2_af <> None:
+         #   self.afh2 = self.__activation_func(hidden2_af)
 
         self.afo = self.__activation_func(output_af)
 
@@ -69,8 +70,8 @@ class nn(Chain):
         z = self.afh(u)
 
         #hidden layer2
-        u = self.lh2(z)
-        z = self.afh2(u)
+        #u = self.lh2(z)
+        #z = self.afh2(u)
 
         #output layer
         u= self.lo(z)
@@ -115,6 +116,8 @@ def load_data(path):
         with open(path + "/" + f) as r:
             ds = r.readlines()
         for d in ds:
+            if len(d) == 0 or re.compile(r'[\d"\']').match(d[0]) is None:
+                continue
             data_count += 1
             text_array = d.split(",")
             if data_length == 0:
@@ -207,24 +210,35 @@ def training_nn(inifile_path, output=None):
         predicts = [[] for x in range(len(label[0]))]
         labels = [[] for x in range(len(label[0]))]
 
-        plt.clf()
         loss_val = 0
         for idx, (d, l) in enumerate(zip(data, label)):
             predict = my_nn(np.array([d]))
             for x in range(len(predict.data)):
                 pass
-            tee(Template("no.$no predict:$predict, actual:$actual, of data:$data").substitute(no=str(idx), predict=str(predict.data), actual=str(l), data=str(d)),logfile)
+            tee(Template("no.$no predict:$predict, actual:$actual, of data:$data").substitute(no=str(idx), predict=str(["{0:.3f}".format(x) for x in predict.data[0]]), actual=str(["{0:.3f}".format(x) for x in l]), data=str(["{0:.3f}".format(x) for x in d])),logfile)
             for pidx, pd in enumerate(predict.data):
                 predicts[pidx].append(pd)
                 labels[pidx].append(l[pidx])
-                loss_val += l[pidx] - pd
+                loss_val += float(l[pidx]) - pd
+        for ci, (pd, lb) in enumerate(zip(predicts,labels)):
+            plt.clf()
+            plt.plot(pd, MATPLOT_COLOR_LIST[ci % len (MATPLOT_COLOR_LIST)] + "-")
+            plt.plot(lb, MATPLOT_COLOR_LIST[ci % len (MATPLOT_COLOR_LIST)] + "--")
+            plt.savefig(statistics_path + "/eval_" + ci + ".png")
+        avgstr = ",".join(["{0:.3f}".format(x) for x in loss_val / float(idx + 1)])
+        accstr = ",".join(["{0:.3f}".format(x) for x in loss_val])
+        tee(Template("---loss accumrate:$acc, average:$avg").substitute(acc=accstr, avg=avgstr), logfile)
+        #
+        """
         for ci, pd in enumerate(predicts):
             plt.plot(pd, MATPLOT_COLOR_LIST[ci % len (MATPLOT_COLOR_LIST)] + "-")
         for ci, lb in enumerate(labels):
             plt.plot(lb, MATPLOT_COLOR_LIST[ci % len (MATPLOT_COLOR_LIST)] + "--")
-        tee(Template("---loss accumrate:$acc, average:$avg").substitute(acc=loss_val, avg = loss_val / float(idx + 1)), logfile)
+        avgstr = ",".join(["{0:.3f}".format(x) for x in loss_val / float(idx + 1)])
+        accstr = ",".join(["{0:.3f}".format(x) for x in loss_val])
+        tee(Template("---loss accumrate:$acc, average:$avg").substitute(acc=accstr, avg=avgstr), logfile)
         plt.savefig(statistics_path + "/eval.png")
         plt.show()
-
-ini = "./#local/gen_nn_03.ini"
+        """
+ini = "./nn/gen_nn_04.ini"
 training_nn(ini)

@@ -1,26 +1,17 @@
 import os
 import random
+from data_treating import common_util
 from datetime import datetime
 
 try:
     os.mkdir("tmp")
 except Exception:
     pass
-time_stamp = "tmp\\" + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-
-os.mkdir(time_stamp)
-eval_data = time_stamp + "\\eval_data"
-os.mkdir(eval_data)
-eval_label = time_stamp + "\\eval_label"
-os.mkdir(eval_label)
-train_data = time_stamp + "\\train_data"
-os.mkdir(train_data)
-train_label = time_stamp + "\\train_label"
-os.mkdir(train_label)
+train_data ,train_label,eval_data ,eval_label = common_util.get_data_path()
 
 for x in range(0,1000):
     y = pow(x,2)
-    if random.randint(1,2) == 1:
+    if common_util.drawing():
         data_path = train_data
         label_path = train_label
     else:
