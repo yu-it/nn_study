@@ -1,0 +1,1 @@
+echo aaaa >> %~dp0\log2.txt 2>&1

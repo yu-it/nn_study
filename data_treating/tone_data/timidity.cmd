@@ -1,0 +1,1 @@
+C:\timidity\timidity -OwM1 %1 >> %~dp0\log.txt 2>&1
