@@ -224,7 +224,7 @@ def training_nn(inifile_path, output=None):
             plt.clf()
             plt.plot(pd, MATPLOT_COLOR_LIST[ci % len (MATPLOT_COLOR_LIST)] + "-")
             plt.plot(lb, MATPLOT_COLOR_LIST[ci % len (MATPLOT_COLOR_LIST)] + "--")
-            plt.savefig(statistics_path + "/eval_" + ci + ".png")
+            plt.savefig(statistics_path + "/eval_" + str(ci) + ".png")
         avgstr = ",".join(["{0:.3f}".format(x) for x in loss_val / float(idx + 1)])
         accstr = ",".join(["{0:.3f}".format(x) for x in loss_val])
         tee(Template("---loss accumrate:$acc, average:$avg").substitute(acc=accstr, avg=avgstr), logfile)
