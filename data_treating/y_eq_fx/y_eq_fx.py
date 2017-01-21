@@ -11,8 +11,9 @@ train_data ,train_label,eval_data ,eval_label = common_util.get_data_path("y_eq_
 xs=[]
 ys=[]
 for x in range(1,1000):
+    x = x * 0.01 + 0.2
     xs.append(x)
-    y = float(1)/(0.3+float(x/1000.0))
+    y = float(1)/x
     ys.append(y)
     if common_util.drawing():
         data_path = train_data

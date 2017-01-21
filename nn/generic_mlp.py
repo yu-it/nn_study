@@ -102,7 +102,7 @@ class loss(Chain):
         return self.loss
 
 
-def load_data(path):
+def load_data(path, data_limit):
     ret = []
     if EXT_OF_FLOAT.match(path) <> None:
         type = np.float32
@@ -118,6 +118,9 @@ def load_data(path):
         for d in ds:
             if len(d) == 0 or re.compile(r'[\d"\']').match(d[0]) is None:
                 continue
+
+            if data_count > data_limit and data_limit > 0 :
+                break
             data_count += 1
             text_array = d.split(",")
             if data_length == 0:
@@ -129,6 +132,9 @@ def load_data(path):
                 if text_array[i].strip() == "0":
                     text_array[i] = "0.01"
             ret.append(text_array)
+        if data_count > data_limit and data_limit > 0:
+            break
+
     return np.array(ret, dtype= type).reshape([data_count,data_length])
 
 def get_optimizer(name):
@@ -159,7 +165,6 @@ def training_nn(inifile_path, output=None):
         e_label = inifile.get("path", "eval_label")
     if output == None:
         output = inifile.get("path", "output_file")
-
     hidden_dim = inifile.getint("model", "hidden")
     optim = inifile.get("model", "optimizer")
     input_af = inifile.get("model", "activation_input")
@@ -170,6 +175,9 @@ def training_nn(inifile_path, output=None):
     output_af = inifile.get("model", "activation_output")
     epoch = inifile.getint("training", "epoch")
     batch_size = inifile.getint("training", "batch_size")
+    data_limit = 0
+    if inifile.has_option("training", "data_limit"):
+        data_limit = inifile.getint("training", "data_limit")
 
 
     if not os.path.exists(statistics):
@@ -181,8 +189,8 @@ def training_nn(inifile_path, output=None):
 
     os.mkdir(statistics_path )
 
-    data = load_data(training_data)
-    label = load_data(label_data )
+    data = load_data(training_data, data_limit)
+    label = load_data(label_data, data_limit)
 
     my_nn = nn(len(data[0]),len(label[0]),hidden_dim, input_af, hidden_af, output_af, hidden2_af)
     model = loss(my_nn)
@@ -205,8 +213,8 @@ def training_nn(inifile_path, output=None):
     chainer.serializers.save_npz(output, my_nn)
 
     if e_data <> None:
-        data = load_data(e_data)
-        label = load_data(e_label)
+        data = load_data(e_data, 0)
+        label = load_data(e_label, 0)
         predicts = [[] for x in range(len(label[0]))]
         labels = [[] for x in range(len(label[0]))]
 
@@ -240,5 +248,5 @@ def training_nn(inifile_path, output=None):
         plt.savefig(statistics_path + "/eval.png")
         plt.show()
         """
-ini = "./nn/gen_nn_04.ini"
+ini = "./nn/gen_nn_05.ini"
 training_nn(ini)
