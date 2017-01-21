@@ -149,57 +149,79 @@ def tee(str, file):
     with open(file, "a") as w:
         w.write((str + "\r\n"))
 
-def training_nn(inifile_path, output=None):
-    time_stamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+
+KEY_STATISTICS = "statistics"
+KEY_DATA_WAREHOUSE = "data_path"
+SUF_TRAINING_DATA = "/train_data"
+SUF_LABEL_DATA = "/train_label"
+SUF_E_DATA = "/eval_data"
+SUF_E_LABEL = "/eval_label"
+KEY_OUTPUT = "output"
+KEY_HIDDEN_DIM = "hidden_dim"
+KEY_OPTIM = "optim"
+KEY_INPUT_AF = "input_af"
+KEY_HIDDEN_AF = "hidden_af"
+KEY_HIDDEN2_AF = "hidden2_af"
+KEY_HIDDEN2_AF = "hidden2_af"
+KEY_OUTPUT_AF = "output_af"
+KEY_EPOCH = "epoch"
+KEY_BATCH_SIZE = "batch_size"
+KEY_DATA_LIMIT = "data_limit"
+
+
+def load_description(ini_file):
+    inifile = ConfigParser.SafeConfigParser()
+    inifile.read(ini_file)
+    desc = dict()
+    desc[KEY_STATISTICS] = inifile.get("path", "statictis")
+    desc[KEY_DATA_WAREHOUSE] = inifile.get("path", "data_path")
+    desc[KEY_OUTPUT] = inifile.get("path", "output_file")
+    desc[KEY_HIDDEN_DIM] = inifile.getint("model", "hidden")
+    desc[KEY_OPTIM] = inifile.get("model", "optimizer")
+    desc[KEY_INPUT_AF] = inifile.get("model", "activation_input")
+    desc[KEY_HIDDEN_AF] = inifile.get("model", "activation_hidden")
+    desc[KEY_HIDDEN2_AF] = None
+    if inifile.has_option("model", "activation_hidden2"):
+        desc[KEY_HIDDEN2_AF] = inifile.get("model", "activation_hidden2")
+    desc[KEY_OUTPUT_AF] = inifile.get("model", "activation_output")
+    desc[KEY_EPOCH] = inifile.getint("training", "epoch")
+    desc[KEY_BATCH_SIZE] = inifile.getint("training", "batch_size")
+    if inifile.has_option("training", "data_limit"):
+        desc[KEY_DATA_LIMIT] = inifile.getint("training", "data_limit")
+    return padd_default_value(desc)
+
+def padd_default_value(description):
+    if not "data_limit" in description:
+        description["data_limit"] = 0
+    return description
+
+
+def training_nn(desc):
+    time_stamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")   #これも上からわたるようにしよう。
     e_data = None
     e_label = None
 
-    inifile = ConfigParser.SafeConfigParser()
-    inifile.read(inifile_path)
 
-    statistics = inifile.get("path", "statictis")
-    training_data = inifile.get("path", "training_data")
-    label_data = inifile.get("path", "training_label")
-    if inifile.has_option("path", "eval_data"):
-        e_data = inifile.get("path", "eval_data")
-        e_label = inifile.get("path", "eval_label")
-    if output == None:
-        output = inifile.get("path", "output_file")
-    hidden_dim = inifile.getint("model", "hidden")
-    optim = inifile.get("model", "optimizer")
-    input_af = inifile.get("model", "activation_input")
-    hidden_af = inifile.get("model", "activation_hidden")
-    hidden2_af = None
-    if inifile.has_option("model", "activation_hidden2"):
-        hidden2_af = inifile.get("model", "activation_hidden2")
-    output_af = inifile.get("model", "activation_output")
-    epoch = inifile.getint("training", "epoch")
-    batch_size = inifile.getint("training", "batch_size")
-    data_limit = 0
-    if inifile.has_option("training", "data_limit"):
-        data_limit = inifile.getint("training", "data_limit")
+    if not os.path.exists(desc[KEY_STATISTICS]):
+        os.mkdir(desc[KEY_STATISTICS])
 
-
-    if not os.path.exists(statistics):
-        os.mkdir(statistics)
-
-    statistics_path = statistics + "/" + time_stamp
+    statistics_path = desc[KEY_STATISTICS] + "/" + time_stamp
 
     logfile = statistics_path + "/log.txt"
 
     os.mkdir(statistics_path )
 
-    data = load_data(training_data, data_limit)
-    label = load_data(label_data, data_limit)
+    data = load_data(desc[KEY_DATA_WAREHOUSE] + SUF_TRAINING_DATA, desc[KEY_DATA_LIMIT])
+    label = load_data(desc[KEY_DATA_WAREHOUSE] + SUF_LABEL_DATA, desc[KEY_DATA_LIMIT])
 
-    my_nn = nn(len(data[0]),len(label[0]),hidden_dim, input_af, hidden_af, output_af, hidden2_af)
+    my_nn = nn(len(data[0]),len(label[0]),desc[KEY_HIDDEN_DIM], desc[KEY_INPUT_AF], desc[KEY_HIDDEN_AF], desc[KEY_OUTPUT_AF], desc[KEY_HIDDEN2_AF])
     model = loss(my_nn)
-    optimizer = get_optimizer(optim)
+    optimizer = get_optimizer(desc[KEY_OPTIM])
     optimizer.setup(model)
-    train_iter = iterators.SerialIterator(tuple_dataset.TupleDataset(data, label),batch_size=batch_size, shuffle=True)
+    train_iter = iterators.SerialIterator(tuple_dataset.TupleDataset(data, label),batch_size=desc[KEY_BATCH_SIZE], shuffle=True)
 
     updater = training.StandardUpdater(train_iter, optimizer)
-    trainer = training.Trainer(updater, (epoch, 'epoch'), out=".")
+    trainer = training.Trainer(updater, (desc[KEY_EPOCH], 'epoch'), out=".")
     trainer.extend(extensions.LogReport())
     trainer.extend(extensions.PrintReport(['epoch','main/loss','validation/main/accuracy']))
     trainer.run()
@@ -210,11 +232,11 @@ def training_nn(inifile_path, output=None):
     plt.clf()
     plt.plot(model.total_accuracy)
     plt.savefig(statistics_path + "/acc.png")
-    chainer.serializers.save_npz(output, my_nn)
+    chainer.serializers.save_npz(desc[KEY_OUTPUT], my_nn)
 
-    if e_data <> None:
-        data = load_data(e_data, 0)
-        label = load_data(e_label, 0)
+    if desc[KEY_DATA_WAREHOUSE] + SUF_E_DATA <> None:
+        data = load_data(desc[KEY_DATA_WAREHOUSE] + SUF_E_DATA, 0)
+        label = load_data(desc[KEY_DATA_WAREHOUSE] + SUF_E_LABEL, 0)
         predicts = [[] for x in range(len(label[0]))]
         labels = [[] for x in range(len(label[0]))]
 
@@ -249,4 +271,4 @@ def training_nn(inifile_path, output=None):
         plt.show()
         """
 ini = "./nn/gen_nn_05.ini"
-training_nn(ini)
+training_nn(load_description(ini))
