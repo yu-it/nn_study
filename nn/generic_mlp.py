@@ -29,6 +29,7 @@ MATPLOT_COLOR_LIST = ["b","g","r","c","m","y"]
 
 class nn(Chain):
 
+
     def __activation_func(self, name):
         if name ==  "id":
             return F.identity
@@ -40,6 +41,8 @@ class nn(Chain):
             return F.tanh
         else:
             return F.identity
+    #
+    """
     def __init__(self,input_dim, output_dim, hidden_dim, input_af, hidden_af, output_af, hidden2_af = None):
         hidden_dim = hidden_dim
         self.hidden_layer_count = hidden_dim
@@ -57,26 +60,55 @@ class nn(Chain):
          #   self.afh2 = self.__activation_func(hidden2_af)
 
         self.afo = self.__activation_func(output_af)
+    """
+    def __create_init_param_dict(self, input_dim, output_dim, input_af, output_af, hiddens):
+        input_af = None #input_afってのは基本ありえないよね
+        nn_param = dict()
+        af_param = dict()
+        seq = []
+        tmp_hiddens = hiddens[:]
+        tmp_hiddens.insert(0,[input_dim, input_af])
+        tmp_hiddens.append(0,[output_dim, output_af])
+        node_in_count = input_dim
+        node_out_count = -1
+        node_af =  None
+        for idx, node in enumerate(hiddens):
+            node_out_count = node[0]
+            node_name = "l" + str(idx)
+            seq.append(node_name)
+            nn_param[node_name] = F.Linear(node_in_count, node_out_count)
+            af_param[node_name] = node_af
+
+            node_in_count = node[0]
+            node_out_count = -1
+            node_af = self.__activation_func(node[1])
+        nn_param["lh"] = F.Linear(node_in_count, output_dim)
+        af_param["lh"] = node_af
+        seq.append("lh")
+        af_param["lo"] = self.__activation_func(output_af)
+        return [nn_param, af_param, seq]
+
+
+    def __init__(self,input_dim, output_dim, input_af, output_af, hiddens):
+        nn_form, af, seq = self.__create_init_param_dict(input_dim,output_dim,input_af,output_af,hiddens)
+        super(nn, self).__init__(
+            **nn_form
+        )
+        self.af = af
+        self.nn = nn_form
+        self.seq = seq
 
     def __call__(self, x):
 
         #input layer
-        u = self.li(x)
-        #z1 = F.dropout(F.sigmoid(u1), train=True)
-        z = self.afi(u)
-
-        #hidden layer
-        u = self.lh(z)
-        z = self.afh(u)
-
-        #hidden layer2
-        #u = self.lh2(z)
-        #z = self.afh2(u)
-
-        #output layer
-        u= self.lo(z)
-        return self.afo(u)
-
+        u = x
+        for node_name in self.seq:
+            if node_name in self.af:
+                z = self.af[node_name](u)
+            else:
+                z = u
+            u = self.nn[node_name](z)
+        return self.af["lo"](u)
 
 class loss(Chain):
     compute_accuracy = True
@@ -258,17 +290,5 @@ def training_nn(desc):
         avgstr = ",".join(["{0:.3f}".format(x) for x in loss_val / float(idx + 1)])
         accstr = ",".join(["{0:.3f}".format(x) for x in loss_val])
         tee(Template("---loss accumrate:$acc, average:$avg").substitute(acc=accstr, avg=avgstr), logfile)
-        #
-        """
-        for ci, pd in enumerate(predicts):
-            plt.plot(pd, MATPLOT_COLOR_LIST[ci % len (MATPLOT_COLOR_LIST)] + "-")
-        for ci, lb in enumerate(labels):
-            plt.plot(lb, MATPLOT_COLOR_LIST[ci % len (MATPLOT_COLOR_LIST)] + "--")
-        avgstr = ",".join(["{0:.3f}".format(x) for x in loss_val / float(idx + 1)])
-        accstr = ",".join(["{0:.3f}".format(x) for x in loss_val])
-        tee(Template("---loss accumrate:$acc, average:$avg").substitute(acc=accstr, avg=avgstr), logfile)
-        plt.savefig(statistics_path + "/eval.png")
-        plt.show()
-        """
 ini = "./nn/gen_nn_05.ini"
 training_nn(load_description(ini))
