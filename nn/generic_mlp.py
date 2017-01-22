@@ -273,52 +273,37 @@ class NnModelDefinition:
         self.output_af = ""
         self.epoch = ""
         self.batch_size = ""
-        self.data_limit = ""
+        self.data_limit = 0
 
 
-KEY_STATISTICS = "statistics"
-KEY_DATA_WAREHOUSE = "data_path"
 SUF_TRAINING_DATA = "/train_data"
 SUF_LABEL_DATA = "/train_label"
 SUF_E_DATA = "/eval_data"
 SUF_E_LABEL = "/eval_label"
-KEY_OUTPUT = "output"
-KEY_HIDDEN_DIM = "hidden_dim"
-KEY_OPTIM = "optim"
-KEY_INPUT_AF = "input_af"
-KEY_HIDDEN_AF = "hidden_af"
-KEY_HIDDEN2_AF = "hidden2_af"
-KEY_HIDDEN2_AF = "hidden2_af"
-KEY_OUTPUT_AF = "output_af"
-KEY_EPOCH = "epoch"
-KEY_BATCH_SIZE = "batch_size"
-KEY_DATA_LIMIT = "data_limit"
 
 def load_description(ini_file):
     inifile = ConfigParser.SafeConfigParser()
     inifile.read(ini_file)
-    desc = dict()
-    desc[KEY_STATISTICS] = inifile.get("path", "statictis")
-    desc[KEY_DATA_WAREHOUSE] = inifile.get("path", "data_path")
-    desc[KEY_OUTPUT] = inifile.get("path", "output_file")
-    desc[KEY_HIDDEN_DIM] = inifile.getint("model", "hidden")
-    desc[KEY_OPTIM] = inifile.get("model", "optimizer")
-    desc[KEY_INPUT_AF] = inifile.get("model", "activation_input")
-    desc[KEY_HIDDEN_AF] = inifile.get("model", "activation_hidden")
-    desc[KEY_HIDDEN2_AF] = None
+    desc = NnModelDefinition()
+    desc.statistics = inifile.get("path", "statictis")
+    desc.data_warehouse = inifile.get("path", "data_path")
+    desc.output = inifile.get("path", "output_file")
+    desc.hidden_dim = inifile.getint("model", "hidden")
+    desc.optim = inifile.get("model", "optimizer")
+    desc.input_af = inifile.get("model", "activation_input")
+    desc.hidden_af = inifile.get("model", "activation_hidden")
+    desc.hidden2_af = None
     if inifile.has_option("model", "activation_hidden2"):
-        desc[KEY_HIDDEN2_AF] = inifile.get("model", "activation_hidden2")
-    desc[KEY_OUTPUT_AF] = inifile.get("model", "activation_output")
-    desc[KEY_EPOCH] = inifile.getint("training", "epoch")
-    desc[KEY_BATCH_SIZE] = inifile.getint("training", "batch_size")
+        desc.hidden2_af = inifile.get("model", "activation_hidden2")
+    desc.output_af = inifile.get("model", "activation_output")
+    desc.epoch = inifile.getint("training", "epoch")
+    desc.batch_size = inifile.getint("training", "batch_size")
     if inifile.has_option("training", "data_limit"):
-        desc[KEY_DATA_LIMIT] = inifile.getint("training", "data_limit")
+        desc.data_limit = inifile.getint("training", "data_limit")
     return padd_default_value(desc)
 
 
 def padd_default_value(description):
-    if not "data_limit" in description:
-        description["data_limit"] = 0
     return description
 
 
@@ -329,36 +314,36 @@ def training_nn(desc):
     e_label = None
 
 
-    if not os.path.exists(desc[KEY_STATISTICS]):
-        os.mkdir(desc[KEY_STATISTICS])
+    if not os.path.exists(desc.statistics):
+        os.mkdir(desc.statistics)
 
-    statistics_path = desc[KEY_STATISTICS] + "/" + time_stamp
+    statistics_path = desc.statistics + "/" + time_stamp
 
     logfile = statistics_path + "/log.txt"
 
     os.mkdir(statistics_path )
 
-    data = load_data(desc[KEY_DATA_WAREHOUSE] + SUF_TRAINING_DATA, desc[KEY_DATA_LIMIT])
-    label = load_data(desc[KEY_DATA_WAREHOUSE] + SUF_LABEL_DATA, desc[KEY_DATA_LIMIT])
+    data = load_data(desc.data_warehouse + SUF_TRAINING_DATA, desc.data_limit)
+    label = load_data(desc.data_warehouse + SUF_LABEL_DATA, desc.data_limit)
 
-    my_nn = nn(len(data[0]), len(label[0]), "id", "id", [[desc[KEY_HIDDEN_DIM], "id"],[desc[KEY_HIDDEN_DIM], desc[KEY_HIDDEN_AF]]])
+    my_nn = nn(len(data[0]), len(label[0]), "id", "id", [[desc.hidden_dim, "id"],[desc.hidden_dim, desc.hidden_af]])
     model = loss(my_nn)
-    optimizer = get_optimizer(desc[KEY_OPTIM])
+    optimizer = get_optimizer(desc.optim)
     optimizer.setup(model)
-    train_iter = iterators.SerialIterator(tuple_dataset.TupleDataset(data, label),batch_size=desc[KEY_BATCH_SIZE], shuffle=True)
+    train_iter = iterators.SerialIterator(tuple_dataset.TupleDataset(data, label),batch_size=desc.batch_size, shuffle=True)
 
     updater = training.StandardUpdater(train_iter, optimizer)
-    trainer = training.Trainer(updater, (desc[KEY_EPOCH], 'epoch'), out=".")
+    trainer = training.Trainer(updater, (desc.epoch, 'epoch'), out=".")
     trainer.extend(extensions.LogReport())
     trainer.extend(extensions.PrintReport(['epoch','main/loss','main/accuracy']))
     trainer.run()
 
     #model.train_statistics.save(statistics_path)
-    #chainer.serializers.save_npz(desc[KEY_OUTPUT], my_nn)
+    #chainer.serializers.save_npz(desc.output, my_nn)
     result = None
-    if desc[KEY_DATA_WAREHOUSE] + SUF_E_DATA <> None:
-        data = load_data(desc[KEY_DATA_WAREHOUSE] + SUF_E_DATA, 0)
-        label = load_data(desc[KEY_DATA_WAREHOUSE] + SUF_E_LABEL, 0)
+    if desc.data_warehouse + SUF_E_DATA <> None:
+        data = load_data(desc.data_warehouse + SUF_E_DATA, 0)
+        label = load_data(desc.data_warehouse + SUF_E_LABEL, 0)
         result = NnResult()
         for idx, (d, l) in enumerate(zip(data, label)):
             predict = my_nn(np.array([d]))
