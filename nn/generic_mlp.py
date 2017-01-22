@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import random
 from decimal import Decimal
 import numpy as np
 import matplotlib.pyplot as plt
@@ -27,8 +28,90 @@ EXT_OF_INT = re.compile(r".+\.int$")
 
 MATPLOT_COLOR_LIST = ["b","g","r","c","m","y"]
 
-class nn(Chain):
 
+class NnTrainStatictis:
+    def __init__(self):
+        self.losses = []
+        self.accurates = []
+    def add_statistics(self, loss, accurate, x, y, t):
+        self.losses.append(loss)
+        self.accurates.append(accurate)
+
+
+    def save(self, output):
+        plt.clf()
+        plt.plot(self.losses)
+        plt.savefig(output + "/loss.png")
+        #plt.clf()
+        #plt.plot(model.total_accuracy)
+        #plt.savefig(statistics_path + "/acc.png")
+        pass
+
+
+class NnResult:
+    def __init__(self):
+        self.datas = []
+        self.predicts = []
+        self.actuals = []
+        self.count = 0
+    def add_result(self, data, predict, actual):
+        self.datas.append(data)
+        self.predicts.append(predict.data[0])
+        self.actuals.append(actual)
+        self.count += 1
+        pass
+
+    def to_string(self, idx=-1):
+        if idx < 0:
+            idx = self.count - 1
+        accuracy = compute_vector_similarly(self.actuals[idx], self.predicts[idx])
+        return Template("no.$no accuracy:$acc, predict:$predict, actual:$actual, of data:$data")\
+            .substitute(acc=accuracy,
+                    no=str(idx),
+                    predict=":".join(["{0:.3f}".format(x) for x in self.predicts[idx]]),
+                    actual=":".join(["{0:.3f}".format(x) for x in self.actuals[idx]]),
+                    data=":".join(["{0:.3f}".format(x) for x in self.datas[idx]]))
+        pass
+
+    def compute_summary_data(self):
+        mean_accuracy = np.mean([compute_vector_similarly(self.actuals[i], self.predicts[i]) for i in xrange(self.count)])
+        loss_accumrate = np.sum([np.sqrt((self.actuals[i] - self.predicts[i]) ** 2).sum() for i in xrange(self.count)])
+        return [mean_accuracy, loss_accumrate]
+
+    def to_string_summary(self):
+        mean_accuracy, loss_accumrate = self.compute_summary_data()
+        return Template("---total performance:$per, loss accumrate:$acc, average:$avg")\
+            .substitute(per=mean_accuracy,acc=loss_accumrate, avg=loss_accumrate / float(self.count))
+    def save(self, output):
+        tee("\r\n".join([self.to_string(i) for i in range(self.count)]), output + "/log.txt")
+        tee("\r\n" + self.to_string_summary(), output + "/log.txt")
+        pd = self.predicts
+        lb = self.actuals
+        pd = np.transpose(pd)
+        lb = np.transpose(lb)
+        for idx, (p, l) in enumerate(zip(pd, lb)):
+            plt.clf()
+            #plt.plot(p, MATPLOT_COLOR_LIST[idx % len (MATPLOT_COLOR_LIST)] + "-")
+            #plt.plot(l, MATPLOT_COLOR_LIST[idx % len (MATPLOT_COLOR_LIST)] + "--")
+            plt.plot(p, "b--")
+            plt.plot(l, "r--")
+            plt.savefig(output + "/eval_" + str(idx) + ".png")
+            plt.clf()
+            plt.plot([compute_scalar_similarly(l[i], p[i]) for i in range(self.count)])
+            plt.plot(lb, "b-")
+            plt.savefig(output + "/accuracy_" + str(idx) + ".png")
+
+        plt.clf()
+        plt.plot([compute_vector_similarly(self.actuals[i], self.predicts[i]) for i in range(self.count)])
+        plt.plot(lb, MATPLOT_COLOR_LIST[0 % len(MATPLOT_COLOR_LIST)] + "--")
+        plt.savefig(output + "/accuracy.png")
+
+
+    def show_fig(self, output):
+        pass
+
+
+class nn(Chain):
 
     def __activation_func(self, name):
         if name ==  "id":
@@ -41,34 +124,15 @@ class nn(Chain):
             return F.tanh
         else:
             return F.identity
-    #
-    """
-    def __init__(self,input_dim, output_dim, hidden_dim, input_af, hidden_af, output_af, hidden2_af = None):
-        hidden_dim = hidden_dim
-        self.hidden_layer_count = hidden_dim
-        super(nn, self).__init__(
-            li=F.Linear(input_dim, hidden_dim),
-            lh=F.Linear(hidden_dim,hidden_dim),
-            #lh2=F.Linear(hidden_dim,hidden_dim),
-            lo=F.Linear(hidden_dim, output_dim)
-        )
 
-        self.afi = self.__activation_func(input_af)
-        self.afh = self.__activation_func(hidden_af)
-        #self.afh2 = self.__activation_func(hidden_af)
-        #if hidden2_af <> None:
-         #   self.afh2 = self.__activation_func(hidden2_af)
-
-        self.afo = self.__activation_func(output_af)
-    """
     def __create_init_param_dict(self, input_dim, output_dim, input_af, output_af, hiddens):
-        input_af = None #input_afってのは基本ありえないよね
+        input_af = None #input_afってのは基本あんまないよね
         nn_param = dict()
         af_param = dict()
         seq = []
         tmp_hiddens = hiddens[:]
         tmp_hiddens.insert(0,[input_dim, input_af])
-        tmp_hiddens.append(0,[output_dim, output_af])
+        tmp_hiddens.append([output_dim, output_af])
         node_in_count = input_dim
         node_out_count = -1
         node_af =  None
@@ -77,7 +141,8 @@ class nn(Chain):
             node_name = "l" + str(idx)
             seq.append(node_name)
             nn_param[node_name] = F.Linear(node_in_count, node_out_count)
-            af_param[node_name] = node_af
+            if not node_af is None:
+                af_param[node_name] = node_af
 
             node_in_count = node[0]
             node_out_count = -1
@@ -87,7 +152,6 @@ class nn(Chain):
         seq.append("lh")
         af_param["lo"] = self.__activation_func(output_af)
         return [nn_param, af_param, seq]
-
 
     def __init__(self,input_dim, output_dim, input_af, output_af, hiddens):
         nn_form, af, seq = self.__create_init_param_dict(input_dim,output_dim,input_af,output_af,hiddens)
@@ -100,7 +164,6 @@ class nn(Chain):
 
     def __call__(self, x):
 
-        #input layer
         u = x
         for node_name in self.seq:
             if node_name in self.af:
@@ -110,35 +173,48 @@ class nn(Chain):
             u = self.nn[node_name](z)
         return self.af["lo"](u)
 
+
 class loss(Chain):
-    compute_accuracy = True
 
     def __init__(self, predictor):
         super(loss, self).__init__(predictor=predictor)
         self.y = None
         self.loss = None
         self.accuracy = None
-        self.total_loss = []
-        self.total_accuracy = []
+        self.compute_accuracy = False
+        self.train_statistics = NnTrainStatictis()
+
     def __call__(self, x, t):
 
         self.y = self.predictor(x)
-        self.loss = F.mean_squared_error(self.y, t)
-        self.total_loss.append(self.loss.data)
+        self.loss = F.mean_squared_error(t, self.y)
+        self.train_statistics.add_statistics(self.loss.data, 0, x, self.y.data, t)
         reporter.report({'loss': self.loss}, self)
-        #print('loss:' + str(self.loss.data))
         if self.compute_accuracy:
-            self.accuracy = self.y
-            self.total_accuracy.append(self.accuracy.data.sum())
+            self.accuracy = compute_vector_similarly(t.data, self.y.data)
             reporter.report({'accuracy': self.accuracy}, self)
         return self.loss
 
 
+def compute_vector_similarly(t, y):
+    #t_norm = np.linalg.norm(t)
+    #diff = np.linalg.norm(t - y)
+    #return max(0.01, t_norm - diff) / t_norm * 100.0
+    accums = []
+    for i in range(len(t)):
+        accums.append(compute_scalar_similarly(t[i], y[i]))
+    return np.mean(accums)
+
+
+def compute_scalar_similarly(t, y):
+    return max(0.01, t - math.fabs(t - y)) / t * 100.0
+
+
 def load_data(path, data_limit):
     ret = []
-    if EXT_OF_FLOAT.match(path) <> None:
+    if not EXT_OF_FLOAT.match(path) is None:
         type = np.float32
-    elif EXT_OF_INT.match(path) <> None:
+    elif not EXT_OF_INT.match(path) is None:
         type = np.int32
     else:
         type = np.float32
@@ -150,7 +226,6 @@ def load_data(path, data_limit):
         for d in ds:
             if len(d) == 0 or re.compile(r'[\d"\']').match(d[0]) is None:
                 continue
-
             if data_count > data_limit and data_limit > 0 :
                 break
             data_count += 1
@@ -166,8 +241,8 @@ def load_data(path, data_limit):
             ret.append(text_array)
         if data_count > data_limit and data_limit > 0:
             break
-
     return np.array(ret, dtype= type).reshape([data_count,data_length])
+
 
 def get_optimizer(name):
     if name == "sgd":
@@ -176,10 +251,29 @@ def get_optimizer(name):
         return optimizers.Adam()
     else:
         return optimizers.SGD()
+
+
 def tee(str, file):
     print(str)
     with open(file, "a") as w:
         w.write((str + "\r\n"))
+
+
+class NnModelDefinition:
+    def __init__(self):
+        self.statistics = ""
+        self.data_warehouse = ""
+        self.output = ""
+        self.hidden_dim = ""
+        self.optim = ""
+        self.input_af = ""
+        self.hidden_af = ""
+        self.hidden2_af = ""
+        self.hidden2_af = ""
+        self.output_af = ""
+        self.epoch = ""
+        self.batch_size = ""
+        self.data_limit = ""
 
 
 KEY_STATISTICS = "statistics"
@@ -199,7 +293,6 @@ KEY_OUTPUT_AF = "output_af"
 KEY_EPOCH = "epoch"
 KEY_BATCH_SIZE = "batch_size"
 KEY_DATA_LIMIT = "data_limit"
-
 
 def load_description(ini_file):
     inifile = ConfigParser.SafeConfigParser()
@@ -222,6 +315,7 @@ def load_description(ini_file):
         desc[KEY_DATA_LIMIT] = inifile.getint("training", "data_limit")
     return padd_default_value(desc)
 
+
 def padd_default_value(description):
     if not "data_limit" in description:
         description["data_limit"] = 0
@@ -229,6 +323,7 @@ def padd_default_value(description):
 
 
 def training_nn(desc):
+
     time_stamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")   #これも上からわたるようにしよう。
     e_data = None
     e_label = None
@@ -246,7 +341,7 @@ def training_nn(desc):
     data = load_data(desc[KEY_DATA_WAREHOUSE] + SUF_TRAINING_DATA, desc[KEY_DATA_LIMIT])
     label = load_data(desc[KEY_DATA_WAREHOUSE] + SUF_LABEL_DATA, desc[KEY_DATA_LIMIT])
 
-    my_nn = nn(len(data[0]),len(label[0]),desc[KEY_HIDDEN_DIM], desc[KEY_INPUT_AF], desc[KEY_HIDDEN_AF], desc[KEY_OUTPUT_AF], desc[KEY_HIDDEN2_AF])
+    my_nn = nn(len(data[0]), len(label[0]), "id", "id", [[desc[KEY_HIDDEN_DIM], "id"],[desc[KEY_HIDDEN_DIM], desc[KEY_HIDDEN_AF]]])
     model = loss(my_nn)
     optimizer = get_optimizer(desc[KEY_OPTIM])
     optimizer.setup(model)
@@ -255,40 +350,20 @@ def training_nn(desc):
     updater = training.StandardUpdater(train_iter, optimizer)
     trainer = training.Trainer(updater, (desc[KEY_EPOCH], 'epoch'), out=".")
     trainer.extend(extensions.LogReport())
-    trainer.extend(extensions.PrintReport(['epoch','main/loss','validation/main/accuracy']))
+    trainer.extend(extensions.PrintReport(['epoch','main/loss','main/accuracy']))
     trainer.run()
 
-    plt.clf()
-    plt.plot(model.total_loss)
-    plt.savefig(statistics_path + "/loss.png")
-    plt.clf()
-    plt.plot(model.total_accuracy)
-    plt.savefig(statistics_path + "/acc.png")
-    chainer.serializers.save_npz(desc[KEY_OUTPUT], my_nn)
-
+    #model.train_statistics.save(statistics_path)
+    #chainer.serializers.save_npz(desc[KEY_OUTPUT], my_nn)
+    result = None
     if desc[KEY_DATA_WAREHOUSE] + SUF_E_DATA <> None:
         data = load_data(desc[KEY_DATA_WAREHOUSE] + SUF_E_DATA, 0)
         label = load_data(desc[KEY_DATA_WAREHOUSE] + SUF_E_LABEL, 0)
-        predicts = [[] for x in range(len(label[0]))]
-        labels = [[] for x in range(len(label[0]))]
-
-        loss_val = 0
+        result = NnResult()
         for idx, (d, l) in enumerate(zip(data, label)):
             predict = my_nn(np.array([d]))
-            for x in range(len(predict.data)):
-                pass
-            tee(Template("no.$no predict:$predict, actual:$actual, of data:$data").substitute(no=str(idx), predict=str(["{0:.3f}".format(x) for x in predict.data[0]]), actual=str(["{0:.3f}".format(x) for x in l]), data=str(["{0:.3f}".format(x) for x in d])),logfile)
-            for pidx, pd in enumerate(predict.data):
-                predicts[pidx].append(pd)
-                labels[pidx].append(l[pidx])
-                loss_val += float(l[pidx]) - pd
-        for ci, (pd, lb) in enumerate(zip(predicts,labels)):
-            plt.clf()
-            plt.plot(pd, MATPLOT_COLOR_LIST[ci % len (MATPLOT_COLOR_LIST)] + "-")
-            plt.plot(lb, MATPLOT_COLOR_LIST[ci % len (MATPLOT_COLOR_LIST)] + "--")
-            plt.savefig(statistics_path + "/eval_" + str(ci) + ".png")
-        avgstr = ",".join(["{0:.3f}".format(x) for x in loss_val / float(idx + 1)])
-        accstr = ",".join(["{0:.3f}".format(x) for x in loss_val])
-        tee(Template("---loss accumrate:$acc, average:$avg").substitute(acc=accstr, avg=avgstr), logfile)
+            result.add_result(d, predict, l)
+        #result.save(statistics_path)
+    return [model,model.train_statistics, result]
 ini = "./nn/gen_nn_05.ini"
-training_nn(load_description(ini))
+model, train_statistics, result = training_nn(load_description(ini))
