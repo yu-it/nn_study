@@ -1,22 +1,32 @@
 # -*- coding: utf-8 -*-
-import random
-from decimal import Decimal
+import generic_mlp
 import numpy as np
-import matplotlib.pyplot as plt
-from chainer import reporter
-import chainer
-from chainer import Function, gradient_check, report, training, utils, Variable
-from chainer import iterators, optimizers
-from chainer import Link, Chain, ChainList
-from chainer.datasets import tuple_dataset
-import chainer.functions as F
-import chainer.links as L
-from chainer.training import extensions
-import math
-import data_treating.tone_data.treatment as treatment
-import data_treating.tone_data.test_data as test_data
+from chainer import serializers
 import re
 import itertools
+import os
+
+TEMPLATE = """
+[path]
+statictis = {statictis}
+data_path = {data_path}
+
+[model]
+hidden = {hidden_form}
+activation_input = id
+activation_output = {output_activation}
+optimizer={optimizer}
+value_type={val_type}
+
+[training]
+epoch={epoch}
+batch_size={batch_size}
+data_limit={data_limit}
+"""
+
+
+
+
 
 PATTERN_OF_STR_ARRAY = re.compile(r"[^\*].+")
 PATTERN_OF_SEQ_ARRAY = re.compile(r"\*.+")
@@ -62,25 +72,155 @@ def get_combo(combo, zorome = True):
             pass
 
     return ret
-layer_from = 2
-layer_to = 5
-node_from = 10
-node_to = 15
-node_step = 2
 
 
-combination_definition = get_combo_definition(layer_from, layer_to, node_from, node_to, node_step)
-combination = get_combo(combination_definition)
-af_combination_definition = get_combo_definition(layer_from, layer_to, 0, 3, 1)
-af_combination = get_combo(af_combination_definition,False)
-af_and_hidden_definition = []
-for x in itertools.product(combination, af_combination):
-    add = True
-    for i in range(len(x[0])):
-        if (x[0][i] == 0 and x[1][i] > 0) or (x[0][i] > 0 and x[1][i] == 0):
-            add = False
+def check_and_create_path(path):
+    if not os.path.exists(path):
+        os.mkdir(path)
+    return path
 
 
-    if add:
-        af_and_hidden_definition.append(x)
-print af_and_hidden_definition
+
+
+if __name__ == "__main__":
+    import sys
+    import ConfigParser
+
+    conf = sys.argv[1]
+    print(conf)
+    inifile = ConfigParser.SafeConfigParser()
+    inifile.read(conf)
+
+    #各種変数定義
+
+    optimizer_from = 0
+    optimizer_to = 1
+
+    layer_from = inifile.getint("combination","layer_from")
+    layer_to = inifile.getint("combination","layer_to")
+    node_from = inifile.getint("combination","node_from")
+    node_to = inifile.getint("combination","node_to")
+    node_step = inifile.getint("combination","node_step")
+
+    epoch_from = inifile.getint("combination","epoch_from")
+    epoch_to = inifile.getint("combination","epoch_to")
+    epoch_step = inifile.getint("combination","epoch_step")
+
+    batch_size_from = inifile.getint("combination","batch_size_from")
+    batch_size_to = inifile.getint("combination","batch_size_to")
+    batch_size_step = inifile.getint("combination", "batch_size_step")
+
+    activation_funcs = [""]
+    optimizer_funcs = []
+    activation_funcs.extend(inifile.get("combination", "activations").split(","))
+    optimizer_funcs.extend(inifile.get("combination", "optimizers").split(","))
+
+    hidden_activation_from = 0
+    hidden_activation_to = len(activation_funcs)
+
+    epochs = [epoch_from + epoch_step * (i) for i in range(((epoch_to - epoch_from) / epoch_step) + 1)]
+    batch_sizes = [batch_size_from + batch_size_step * (i) for i in range(((batch_size_to - batch_size_from) / batch_size_step) + 1)]
+    optimizers = range(optimizer_from, len(optimizer_funcs))
+
+
+    hidden_dim_combination_definition = get_combo_definition(layer_from, layer_to, node_from, node_to, node_step)
+    hidden_dim_combination = get_combo(hidden_dim_combination_definition)
+    hidden_af_combination_definition = get_combo_definition(layer_from, layer_to, hidden_activation_from, hidden_activation_to, 1)
+    hidden_af_combination = get_combo(hidden_af_combination_definition, False)
+    hidden_af_and_hidden_dim_definition = []
+    for x in itertools.product(hidden_dim_combination, hidden_af_combination):
+        add = True
+        for i in range(len(x[0])):
+            if (x[0][i] == 0 and x[1][i] > 0) or (x[0][i] > 0 and x[1][i] == 0):
+                add = False
+
+
+        if add:
+            hidden_af_and_hidden_dim_definition.append(x)
+
+    #epoch
+
+
+    #batch_size
+
+
+    base_path = check_and_create_path(inifile.get("running_definition", "base"))
+    save_fig = check_and_create_path(inifile.get("running_definition", "save_fig"))
+
+    generic_mlp.SAVE_FIG = save_fig.lower() == "true"
+
+    statistics_base_path = check_and_create_path(base_path + "/statistics")
+    config_base_path = check_and_create_path(base_path + "/configs")
+    model_base_path = check_and_create_path(base_path + "/models")
+    evaluation_path = check_and_create_path(base_path) #とりあえずルートにしておく
+    statistics = []
+    generated_configs = []
+    for idx, definition in enumerate(itertools.product(optimizers, batch_sizes, epochs, hidden_af_and_hidden_dim_definition)):
+
+        hidden_form = ""
+        for node_count,activation in zip(*definition[3]):
+            if node_count > 0:
+                hidden_form += "-" + str(node_count) + "," + activation_funcs[activation]
+
+        hidden_form = hidden_form[1:]
+        statistics_path =  check_and_create_path(statistics_base_path + "/" + str(idx))
+        config = TEMPLATE.format(statictis=statistics_path,
+                                 data_path=inifile.get("running_definition", "data_path"),
+                                 output_activation=inifile.get("running_definition", "output_activation"),
+                                 val_type=inifile.get("running_definition", "value_type"),
+                                 data_limit=inifile.get("running_definition", "data_limit"),
+                                 optimizer=optimizer_funcs [definition[0]],
+                                 batch_size=definition[1],
+                                 epoch=definition[2],
+                                 hidden_form=hidden_form)
+        config_file = config_base_path + "/" + str(idx) + ".ini"
+        with open(config_file ,"w") as w:
+            w.write(config)
+        generated_configs.append([config_file,statistics_path])
+
+for idx,target in enumerate(generated_configs):
+    file = target[0]
+    statistics_path = target[1]
+    model, train_statistics, result = generic_mlp.training_nn_by_conf(file)
+
+    model_file = model_base_path + "/" + str(idx) + ".model"
+    serializers.save_npz(model_file, model)
+
+    result.save(statistics_path)
+    train_statistics.save(statistics_path)
+    mean_accuracy, loss_accumrate = result.compute_summary_data()
+    with open(file) as r:
+        config = "\n".join(r.readlines())
+    statistics.append((loss_accumrate, idx, config, mean_accuracy,train_statistics))
+    print("by_[{hidden_form}]_epoch:{epoch}_batch:{batch} elapsed:{elapsed}".format(
+                                hidden_form=train_statistics.nn_structure,
+                                epoch=train_statistics.epoch_count,
+                                batch=train_statistics.batch_size,
+                                elapsed=(train_statistics.end_time - train_statistics.start_time).total_seconds()))
+
+statistics = sorted(statistics, key=lambda v : v[0])
+
+ranking_file = base_path + "/ranking.txt"
+ranking_detail_file = base_path + "/ranking_detail.txt"
+for idx, s in enumerate(statistics):
+    stat = s[4]
+    digest_temp = "{rank}_config-no_{conf_no}_{loss}_{accurate}_by_[{hidden_form}]_epoch:{epoch}_batch:{batch} elapsed:{elapsed}"
+    #digest = str(idx) + "_config-no_" + str(s[1]) + "_" + str(s[0]) + "_" + str(s[3])
+    digest = digest_temp.format(rank=idx,
+                                conf_no=s[1],
+                                loss=s[0],
+                                accurate=s[3],
+                                hidden_form=stat.nn_structure,
+                                epoch=stat.epoch_count,
+                                batch=stat.batch_size,
+                                elapsed=(stat.end_time - stat.start_time).total_seconds())
+    with open(ranking_file, "a") as w:
+        w.write(digest + "\n")
+    with open(ranking_detail_file, "a") as w:
+        w.write(digest + "\n")
+        w.write(str(s[2]))
+        w.write("\n")
+        w.write("\n")
+        w.write("---------------------------------------------------------------------")
+        w.write("\n")
+

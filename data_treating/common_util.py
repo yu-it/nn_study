@@ -2,8 +2,8 @@ import os
 from datetime import datetime
 import random
 
-def drawing():
-    return random.randint(1, 2) == 1
+def drawing(odds = 0.5):
+    return random.random() <= odds
 
 def get_data_path(prefix = ""):
     if prefix == "":
