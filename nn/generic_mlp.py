@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from chainer import reporter, serializers
 from chainer import Function, gradient_check, report, training, utils, Variable

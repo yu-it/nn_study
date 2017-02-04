@@ -2,6 +2,8 @@ import os
 import random
 from data_treating import common_util
 from datetime import datetime
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 try:
     os.mkdir("tmp")
@@ -26,4 +28,5 @@ for x in range(1,1000):
     with open(data_path + "/x.txt", "a") as w:
         w.write(str(x) + "\r\n")
 plt.plot(ys)
+plt.savefig("y_eq_ax.png")
 plt.show()
