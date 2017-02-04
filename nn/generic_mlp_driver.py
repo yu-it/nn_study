@@ -196,7 +196,8 @@ for idx,target in enumerate(generated_configs):
     with open(file) as r:
         config = "\n".join(r.readlines())
     statistics.append((loss_accumrate, idx, config, mean_accuracy,train_statistics))
-    print("by_[{hidden_form}]_epoch:{epoch}_batch:{batch} elapsed:{elapsed}".format(
+    print("no{num} by_[{hidden_form}]_epoch:{epoch}_batch:{batch} elapsed:{elapsed}".format(
+                                num=idx,
                                 hidden_form=train_statistics.nn_structure,
                                 epoch=train_statistics.epoch_count,
                                 batch=train_statistics.batch_size,
