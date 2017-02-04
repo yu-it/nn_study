@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from datetime import datetime
 import nn.generic_mlp as generic_mlp
 import numpy as np
 from chainer import serializers
@@ -53,23 +54,18 @@ def get_combo(combo, zorome = True):
         aa = list(aa)
         aa.reverse()
 
-        if not 0 in aa:
-            ret.append(aa)
-            # print('_________')
+        if 0 in aa:
+            tmp = aa[aa.index(0) + 1:]
+            if len(tmp) > 0 and max(tmp) > 0:
+                continue
+            elif np.sum(aa) == 0:
+                continue
+        #elif aa.count(aa[0]) + aa.count(0) <> len(aa) and zorome:  # とりあえず今はすべての層のノード数をそろえることとする。
+        if (aa.count(aa[0]) + aa.count(0)) <> len(aa) and zorome:  # とりあえず今はすべての層のノード数をそろえることとする。
             continue
-        tmp = aa[aa.index(0) + 1:]
-        if len(tmp) > 0 and max(tmp) > 0:
-            pass
-        elif np.sum(aa) == 0:
-            pass
-        elif aa.count(aa[0]) + aa.count(0) <> len(aa) and zorome:   #とりあえず今はすべての層のノード数をそろえることとする。
-            pass
-        elif aa in ret:
-            pass
-        else:
-            ret.append(aa)
-            # print('_________')
-            pass
+        if aa in ret:
+            continue
+        ret.append(aa)
 
     return ret
 
@@ -106,6 +102,7 @@ if __name__ == "__main__":
     node_from = inifile.getint("combination","node_from")
     node_to = inifile.getint("combination","node_to")
     node_step = inifile.getint("combination","node_step")
+    af_same_all = inifile.get("combination","af_same_all")
 
     epoch_from = inifile.getint("combination","epoch_from")
     epoch_to = inifile.getint("combination","epoch_to")
@@ -131,7 +128,7 @@ if __name__ == "__main__":
     hidden_dim_combination_definition = get_combo_definition(layer_from, layer_to, node_from, node_to, node_step)
     hidden_dim_combination = get_combo(hidden_dim_combination_definition)
     hidden_af_combination_definition = get_combo_definition(layer_from, layer_to, hidden_activation_from, hidden_activation_to, 1)
-    hidden_af_combination = get_combo(hidden_af_combination_definition, False)
+    hidden_af_combination = get_combo(hidden_af_combination_definition, af_same_all.lower() == "true")
     hidden_af_and_hidden_dim_definition = []
     for x in itertools.product(hidden_dim_combination, hidden_af_combination):
         add = True
@@ -150,6 +147,8 @@ if __name__ == "__main__":
 
 
     base_path = check_and_create_path(inifile.get("running_definition", "base"))
+    base_path = base_path + "/" + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+    os.mkdir(base_path)
     save_fig = check_and_create_path(inifile.get("running_definition", "save_fig"))
 
     generic_mlp.SAVE_FIG = save_fig.lower() == "true"
