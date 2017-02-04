@@ -1,21 +1,14 @@
 # -*- coding: utf-8 -*-
-import random
-from decimal import Decimal
 import numpy as np
 import matplotlib.pyplot as plt
 from chainer import reporter, serializers
-import chainer
 from chainer import Function, gradient_check, report, training, utils, Variable
 from chainer import iterators, optimizers
 from chainer import Link, Chain, ChainList
 from chainer.datasets import tuple_dataset
 import chainer.functions as F
-import chainer.links as L
 from chainer.training import extensions
 import math
-import data_treating.tone_data.treatment as treatment
-import data_treating.tone_data.test_data as test_data
-import re
 
 from datetime import datetime
 import ConfigParser
