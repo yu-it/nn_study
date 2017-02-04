@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
+
 import numpy as np
 import matplotlib
-matplotlib.use('Agg')
+import entire_common
+if not entire_common.isClient():
+    matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 from chainer import reporter, serializers
 from chainer import Function, gradient_check, report, training, utils, Variable
@@ -87,7 +91,7 @@ class NnResult:
         return Template("---total performance:$per, loss accumrate:$acc, average:$avg")\
             .substitute(per=mean_accuracy,acc=loss_accumrate, avg=loss_accumrate / float(self.count))
     def save(self, output):
-        tee("\r\n".join([self.to_string(i) for i in range(self.count)]), output + "/log.txt")
+        tee("\r\n".join([self.to_string(i) for i in range(self.count)]), output + "/log.txt",entire_common.isClient())
         tee("\r\n" + self.to_string_summary(), output + "/log.txt")
         pd = self.predicts
         lb = self.actuals
@@ -276,8 +280,9 @@ def get_optimizer(name):
         return optimizers.SGD()
 
 
-def tee(str, file):
-    print(str)
+def tee(str, file, flg = True):
+    if flg:
+        print(str)
     with open(file, "a") as w:
         w.write((str + "\r\n"))
 

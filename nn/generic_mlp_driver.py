@@ -87,6 +87,11 @@ if __name__ == "__main__":
     import ConfigParser
 
     conf = sys.argv[1]
+    if len(sys.argv) > 2:
+        mode = sys.argv[2]  #0 client,1 server
+    else:
+        mode = 0
+    generic_mlp.MODE = mode
     print(conf)
     inifile = ConfigParser.SafeConfigParser()
     inifile.read(conf)

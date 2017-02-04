@@ -3,7 +3,10 @@ import random
 from data_treating import common_util
 from datetime import datetime
 import matplotlib
-matplotlib.use('Agg')
+import entire_common
+if not entire_common.isClient():
+    matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 try:
     os.mkdir("tmp")
