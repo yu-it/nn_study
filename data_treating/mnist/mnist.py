@@ -28,15 +28,15 @@ for idx,(x,  y) in enumerate(zip(mnist["data"], mnist["target"])):
     ys.append(",".join(["1" if i == y else "0" for i  in range(10)]))
     xs.append(",".join([str(xw) for xw in x]))
 
-with open(train_label + "\\y.txt","a") as w:
+with open(train_label + "/y.txt","a") as w:
     w.write("\n".join(tys))
     #w.writelines(tys)
-with open(train_data + "\\x.txt", "a") as w:
+with open(train_data + "/x.txt", "a") as w:
     w.write("\n".join(txs))
     #w.writelines(txs)
-with open(eval_label + "\\y.txt","a") as w:
+with open(eval_label + "/y.txt","a") as w:
     w.write("\n".join(eys))
     #w.writelines(eys)
-with open(eval_data + "\\x.txt", "a") as w:
+with open(eval_data + "/x.txt", "a") as w:
     w.write("\n".join(exs))
     #w.writelines(exs)

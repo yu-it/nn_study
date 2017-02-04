@@ -21,9 +21,9 @@ for x in range(1,1000):
     else:
         data_path = eval_data
         label_path = eval_label
-    with open(label_path + "\\y.txt","a") as w:
+    with open(label_path + "/y.txt","a") as w:
         w.write(str(y) + "\r\n")
-    with open(data_path + "\\x.txt", "a") as w:
+    with open(data_path + "/x.txt", "a") as w:
         w.write(str(x) + "\r\n")
 plt.plot(ys)
 plt.show()
