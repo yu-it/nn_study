@@ -356,6 +356,7 @@ def training_nn(desc):
 
     optimizer = get_optimizer(desc.optim)
     optimizer.setup(model)
+    print ("data_length:{data}/{label}".format(data=len(data), label=len(label)))
     train_iter = iterators.SerialIterator(tuple_dataset.TupleDataset(data, label),batch_size=desc.batch_size, shuffle=True)
 
     updater = training.StandardUpdater(train_iter, optimizer)
