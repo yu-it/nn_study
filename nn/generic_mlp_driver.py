@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import generic_mlp
+import nn.generic_mlp
 import numpy as np
 from chainer import serializers
 import re
