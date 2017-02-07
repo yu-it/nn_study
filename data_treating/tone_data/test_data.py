@@ -6,12 +6,13 @@ import pretty_midi
 import treatment
 import subprocess
 import numpy
-
+import data_treating.common_util as common_util
 
 def create_testdata(min_tone, max_tone, polytone_count, number_of_tone_color, style_set, output):
     #raw data
     #normalization data
     #answer(unit_vector, index
+    train_data ,train_label,eval_data ,eval_label = common_util.get_data_path("tones")
     seq_no = 0
     max_tone
     for poly in xrange(polytone_count):
@@ -23,22 +24,24 @@ def create_testdata(min_tone, max_tone, polytone_count, number_of_tone_color, st
                 if max(vector) == 1:
 
                     midi = create_midi([[treatment.available_tones[tone],tone_color] for tone in tones])
-                    fname_prefix = (output + "/" + str(seq_no) + "_" + "_".join([treatment.available_tones[tone] for tone in tones]) + "_" + tone_color.replace(" ","_")).replace("#","X")
-                    midi.write(fname_prefix + ".mid")
-                    convert_to_wave(fname_prefix + ".mid")
-                    array, nor_array = treatment.normalization(fname_prefix + ".wav", 1000, 0)
+                    data,label = (train_data,train_label) if common_util.drawing(0.7) else (eval_data,eval_label)
+                    fname_prefix = (data+ "/" + str(seq_no) + "_" + "_".join([treatment.available_tones[tone] for tone in tones]) + "_" + tone_color.replace(" ","_")).replace("#","X")
+                    label_fname_prefix = (label+ "/" + str(seq_no) + "_" + "_".join([treatment.available_tones[tone] for tone in tones]) + "_" + tone_color.replace(" ","_")).replace("#","X")
+                    midi.write("work.mid")
+                    convert_to_wave("work.mid")
+                    array, nor_array = treatment.normalization("work.wav", 1000, 0)
                     #(未)nor_arrayをcsvに
                     with open(fname_prefix + "_nor.csv","w") as w:
                         w.write(",".join([str(x) for x in nor_array]))
 
-                    with open(fname_prefix + "_raw.csv","w") as w:
-                        w.write(",".join([str(x) for x in array]))
+                    #with open(fname_prefix + "_raw.csv","w") as w:
+                    #    w.write(",".join([str(x) for x in array]))
 
-                    with open(fname_prefix + "_vector.txt","w") as w:
+                    with open(label_fname_prefix + "_vector.txt","w") as w:
                         w.write(",".join([str(x) for x in vector]))
 
-                    with open(fname_prefix + "_tone.txt","w") as w:
-                        w.write(",".join([str(x) for x in tones]))
+                    #with open(fname_prefix + "_tone.txt","w") as w:
+                    #    w.write(",".join([str(x) for x in tones]))
 
                 cursor = poly
                 tones[cursor] += 1
@@ -207,20 +210,3 @@ available_tone_colors = ["Acoustic Grand Piano",
 "Applause",
 "Gunshot"]
 
-if __name__ == "__main__":
-    from scipy.io.wavfile import read
-    import matplotlib.pyplot as plt
-    import treatment
-
-    create_midi([["C4",available_tone_colors[0]],["E4",available_tone_colors[10]]]).write("test.mid")
-    convert_to_wave("test.mid")
-
-
-    fs,wav = read("test.wav")
-    ary = treatment.normalize_array(numpy.array(wav,dtype=numpy.float32))
-    print(ary.mean())
-    print(numpy.sqrt(((ary - ary.mean()) ** 2).sum() / len(ary)))
-    plt.plot(ary)
-    plt.show()
-
-    pass

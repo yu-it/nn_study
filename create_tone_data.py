@@ -22,3 +22,13 @@ if __name__ == "__main__":
     create_testdata(min_tone, max_tone, polytone_count, number_of_tone_color, "", output)   #style_set用途未定のため
 
 pass
+
+def show(path, num):
+    import os
+    import numpy as np
+    import matplotlib.pyplot as plt
+    ary = sorted(os.listdir(path))
+    with open(ary[num]) as w:
+        npary = np.asarray(w.read().split(","),dtype=np.float32)
+    plt.plot(npary)
+    plt.show()

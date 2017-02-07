@@ -47,10 +47,10 @@ class NnTrainStatictis:
 
     def save(self, output):
         tee("\r\ntrainingdigest_[{hidden_form}]_epoch:{epoch}_batch:{batch} elapsed:{elapsed}".format(
-            hidden_form=train_statistics.nn_structure,
-            epoch=train_statistics.epoch_count,
-            batch=train_statistics.batch_size,
-            elapsed=(train_statistics.end_time - train_statistics.start_time).total_seconds()), output + "/log.txt")
+            hidden_form=self.nn_structure,
+            epoch=self.epoch_count,
+            batch=self.batch_size,
+            elapsed=(self.end_time - self.start_time).total_seconds()), output + "/log.txt")
         plt.clf()
         plt.plot(self.losses)
         plt.savefig(output + "/loss_transition.png")
