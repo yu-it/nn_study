@@ -182,50 +182,50 @@ if __name__ == "__main__":
             w.write(config)
         generated_configs.append([config_file,statistics_path])
 
-for idx,target in enumerate(generated_configs):
-    file = target[0]
-    statistics_path = target[1]
-    model, train_statistics, result = generic_mlp.training_nn_by_conf(file)
+    for idx,target in enumerate(generated_configs):
+        file = target[0]
+        statistics_path = target[1]
+        model, train_statistics, result = generic_mlp.training_nn_by_conf(file)
 
-    model_file = model_base_path + "/" + str(idx) + ".model"
-    serializers.save_npz(model_file, model)
+        model_file = model_base_path + "/" + str(idx) + ".model"
+        serializers.save_npz(model_file, model)
 
-    result.save(statistics_path)
-    train_statistics.save(statistics_path)
-    mean_accuracy, loss_accumrate = result.compute_summary_data()
-    with open(file) as r:
-        config = "\n".join(r.readlines())
-    statistics.append((loss_accumrate, idx, config, mean_accuracy,train_statistics))
-    print("no{num} by_[{hidden_form}]_epoch:{epoch}_batch:{batch} elapsed:{elapsed}".format(
-                                num=idx,
-                                hidden_form=train_statistics.nn_structure,
-                                epoch=train_statistics.epoch_count,
-                                batch=train_statistics.batch_size,
-                                elapsed=(train_statistics.end_time - train_statistics.start_time).total_seconds()))
+        result.save(statistics_path)
+        train_statistics.save(statistics_path)
+        mean_accuracy, loss_accumrate = result.compute_summary_data()
+        with open(file) as r:
+            config = "\n".join(r.readlines())
+        statistics.append((loss_accumrate, idx, config, mean_accuracy,train_statistics))
+        print("no{num} by_[{hidden_form}]_epoch:{epoch}_batch:{batch} elapsed:{elapsed}".format(
+                                    num=idx,
+                                    hidden_form=train_statistics.nn_structure,
+                                    epoch=train_statistics.epoch_count,
+                                    batch=train_statistics.batch_size,
+                                    elapsed=(train_statistics.end_time - train_statistics.start_time).total_seconds()))
 
-statistics = sorted(statistics, key=lambda v : v[0])
+    statistics = sorted(statistics, key=lambda v : v[0])
 
-ranking_file = base_path + "/ranking.txt"
-ranking_detail_file = base_path + "/ranking_detail.txt"
-for idx, s in enumerate(statistics):
-    stat = s[4]
-    digest_temp = "{rank}_config-no_{conf_no}_{loss}_{accurate}_by_[{hidden_form}]_epoch:{epoch}_batch:{batch} elapsed:{elapsed}"
-    #digest = str(idx) + "_config-no_" + str(s[1]) + "_" + str(s[0]) + "_" + str(s[3])
-    digest = digest_temp.format(rank=idx,
-                                conf_no=s[1],
-                                loss=s[0],
-                                accurate=s[3],
-                                hidden_form=stat.nn_structure,
-                                epoch=stat.epoch_count,
-                                batch=stat.batch_size,
-                                elapsed=(stat.end_time - stat.start_time).total_seconds())
-    with open(ranking_file, "a") as w:
-        w.write(digest + "\n")
-    with open(ranking_detail_file, "a") as w:
-        w.write(digest + "\n")
-        w.write(str(s[2]))
-        w.write("\n")
-        w.write("\n")
-        w.write("---------------------------------------------------------------------")
-        w.write("\n")
+    ranking_file = base_path + "/ranking.txt"
+    ranking_detail_file = base_path + "/ranking_detail.txt"
+    for idx, s in enumerate(statistics):
+        stat = s[4]
+        digest_temp = "{rank}_config-no_{conf_no}_{loss}_{accurate}_by_[{hidden_form}]_epoch:{epoch}_batch:{batch} elapsed:{elapsed}"
+        #digest = str(idx) + "_config-no_" + str(s[1]) + "_" + str(s[0]) + "_" + str(s[3])
+        digest = digest_temp.format(rank=idx,
+                                    conf_no=s[1],
+                                    loss=s[0],
+                                    accurate=s[3],
+                                    hidden_form=stat.nn_structure,
+                                    epoch=stat.epoch_count,
+                                    batch=stat.batch_size,
+                                    elapsed=(stat.end_time - stat.start_time).total_seconds())
+        with open(ranking_file, "a") as w:
+            w.write(digest + "\n")
+        with open(ranking_detail_file, "a") as w:
+            w.write(digest + "\n")
+            w.write(str(s[2]))
+            w.write("\n")
+            w.write("\n")
+            w.write("---------------------------------------------------------------------")
+            w.write("\n")
 

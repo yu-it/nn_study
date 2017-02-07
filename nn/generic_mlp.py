@@ -46,6 +46,11 @@ class NnTrainStatictis:
 
 
     def save(self, output):
+        tee("\r\ntrainingdigest_[{hidden_form}]_epoch:{epoch}_batch:{batch} elapsed:{elapsed}".format(
+            hidden_form=train_statistics.nn_structure,
+            epoch=train_statistics.epoch_count,
+            batch=train_statistics.batch_size,
+            elapsed=(train_statistics.end_time - train_statistics.start_time).total_seconds()), output + "/log.txt")
         plt.clf()
         plt.plot(self.losses)
         plt.savefig(output + "/loss_transition.png")
@@ -57,15 +62,17 @@ class NnResult:
         self.datas = []
         self.predicts = []
         self.actuals = []
+        self.files = []
         self.count = 0
         self.value_type = val_type
 
 
 
-    def add_result(self, data, predict, actual):
+    def add_result(self, data, predict, actual, f):
         self.datas.append(data)
         self.predicts.append(predict)
         self.actuals.append(actual)
+        self.files.append(f)
         self.count += 1
         pass
 
@@ -73,12 +80,13 @@ class NnResult:
         if idx < 0:
             idx = self.count - 1
         accuracy = compute_vector_similarly(self.actuals[idx], self.predicts[idx], self.value_type == VAL_TYPE_ONE_HOT)
-        return Template("no.$no accuracy:$acc, predict:$predict, actual:$actual, of data:$data")\
+        return Template("no.$no accuracy:$acc, predict:$predict, actual:$actual, of data:$data - $fname")\
             .substitute(acc=accuracy,
                     no=str(idx),
                     predict=":".join(["{0:.3f}".format(x) for x in self.predicts[idx]]),
                     actual=":".join(["{0:.3f}".format(x) for x in self.actuals[idx]]),
-                    data=":".join(["{0:.3f}".format(x) for x in self.datas[idx]]))
+                    data=":".join(["{0:.3f}".format(x) for x in self.datas[idx]]),
+                    fname=self.files[idx])
         pass
 
     def compute_summary_data(self):
@@ -108,7 +116,6 @@ class NnResult:
                 plt.savefig(output + "/eval_" + str(idx) + ".png")
                 plt.clf()
                 plt.plot([compute_scalar_similarly(l[i], p[i], self.value_type == VAL_TYPE_ONE_HOT) for i in range(self.count)])
-                plt.plot(lb, "b-")
                 plt.savefig(output + "/accuracy_" + str(idx) + ".png")
 
             plt.clf()
@@ -237,7 +244,7 @@ def compute_scalar_similarly(t, y, digital):
     return max(0.01, larger - math.fabs(larger - smaller)) / larger * 100.0
 
 
-def load_data(path, data_limit):
+def load_data(path, data_limit, with_fname=False):
     ret = []
     if not EXT_OF_FLOAT.match(path) is None:
         type = np.float32
@@ -247,6 +254,7 @@ def load_data(path, data_limit):
         type = np.float32
     data_length = 0
     data_count = 0
+    fnames = []
     for f in sorted(os.listdir(path)):
         with open(path + "/" + f) as r:
             ds = r.readlines()
@@ -266,9 +274,13 @@ def load_data(path, data_limit):
                 if text_array[i].strip() == "0":
                     text_array[i] = "0.01"
             ret.append(text_array)
+            fnames.append(f)
         if data_count > data_limit and data_limit > 0:
             break
-    return np.array(ret, dtype= type).reshape([data_count,data_length])
+    if with_fname:
+        return [fnames,np.array(ret, dtype=type).reshape([data_count, data_length])]
+    else:
+        return np.array(ret, dtype= type).reshape([data_count,data_length])
 
 
 def get_optimizer(name):
@@ -379,18 +391,19 @@ def training_nn(desc):
     result = None
     if desc.data_warehouse + SUF_E_DATA <> None:
         data = load_data(desc.data_warehouse + SUF_E_DATA, 0)
-        label = load_data(desc.data_warehouse + SUF_E_LABEL, 0)
+        label = load_data(desc.data_warehouse + SUF_E_LABEL, 0, True)
         result = NnResult(desc.value_type)
         #, nn_structure, batch_size, epoch_count, start_time, end_time
-        eset = zip(data, label)
+        eset = zip(data, label[1])
         #random.shuffle(eset)
         for idx, (d, l) in enumerate(eset):
+            f = label[0][idx]
             predict = my_nn(np.array([d])).data[0]
             if desc.value_type == VAL_TYPE_ONE_HOT:
                 predict = [1 if i == np.argmax(predict) else 0 for i in range(len(predict))]
             else:
                 predict = predict
-            result.add_result(d, predict, l)
+            result.add_result(d, predict, l, f)
         #result.save(statistics_path)
     return [model,model.train_statistics, result]
 
