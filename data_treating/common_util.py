@@ -5,11 +5,17 @@ import random
 def drawing(odds = 0.5):
     return random.random() <= odds
 
-def get_data_path(prefix = ""):
+def get_data_path(prefix = "", networkfolder = False):
     if prefix == "":
-        time_stamp = "./data_treating/warehouse/" + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+        if networkfolder:
+            time_stamp = "t:/" + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+        else:
+            time_stamp = "./data_treating/warehouse/" + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
     else:
-        time_stamp = "./data_treating/warehouse/" + prefix + "_" + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+        if networkfolder:
+            time_stamp = "t:/" + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+        else:
+            time_stamp = "./data_treating/warehouse/" + prefix + "_" + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
 
     os.mkdir(time_stamp)
     eval_data = time_stamp + "/eval_data"

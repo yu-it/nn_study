@@ -19,7 +19,7 @@ if __name__ == "__main__":
     #    raise Exception("パスがありません")
 
     #create_testdata(min_tone, max_tone, polytone_count, number_of_tone_color, style_set, output)
-    create_testdata(min_tone, max_tone, polytone_count, number_of_tone_color, "", output)   #style_set用途未定のため
+    create_testdata(min_tone, max_tone, polytone_count, number_of_tone_color, "", output, 00)   #style_set用途未定のため
 
 pass
 

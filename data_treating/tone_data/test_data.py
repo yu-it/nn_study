@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import shutil
 import os
 import math
 import matplotlib.pyplot as plt
@@ -8,40 +9,53 @@ import subprocess
 import numpy
 import data_treating.common_util as common_util
 
-def create_testdata(min_tone, max_tone, polytone_count, number_of_tone_color, style_set, output):
+def create_testdata(min_tone, max_tone, polytone_count, number_of_tone_color, style_set, output,seq_no = 0, odds = 0.25, work_at_network = True):
     #raw data
     #normalization data
     #answer(unit_vector, index
-    train_data ,train_label,eval_data ,eval_label = common_util.get_data_path("tones")
-    seq_no = 0
-    max_tone
+    train_data ,train_label,eval_data ,eval_label = common_util.get_data_path("tones", True)
+    wav_data = train_data + "_wav"
+    os.mkdir(wav_data)
+    #seq_no = 0
     for poly in xrange(polytone_count):
+
         for tone_color in available_tone_colors[0: number_of_tone_color]:
             tones = [min_tone for i in xrange(poly + 1)]
             #while not((poly == 0 or min(tones) == max(tones) - 1) and tones[0] > max_tone):
             while tones[0] <= max_tone:
                 vector = vectorize(tones, len(treatment.available_tones))
                 if max(vector) == 1:
+                    if poly == 1 or common_util.drawing(odds):
+                        midi = create_midi([[treatment.available_tones[tone],tone_color] for tone in tones])
+                        data,label = (train_data,train_label) if common_util.drawing(0.7) else (eval_data,eval_label)
+                        fname_prefix = (data+ "/" + str(seq_no) + "_" + "_".join([treatment.available_tones[tone] for tone in tones]) + "_" + tone_color.replace(" ","_")).replace("#","X")
+                        label_fname_prefix = (label+ "/" + str(seq_no) + "_" + "_".join([treatment.available_tones[tone] for tone in tones]) + "_" + tone_color.replace(" ","_")).replace("#","X")
+                        if work_at_network:
+                            midi.write("t:work.mid")
+                            convert_to_wave("t:work.mid")
+                            array, nor_array = treatment.normalization("t:work.wav", 1000, 0)
+                            shutil.copy2("t:work.wav", wav_data + "/" + str(seq_no) + "_" + ("_".join([treatment.available_tones[tone] for tone in tones]) + "_" + tone_color.replace(" ","_")).replace("#","X") + ".wav")
+                        else:
+                            midi.write("work.mid")
+                            convert_to_wave("work.mid")
+                            array, nor_array = treatment.normalization("work.wav", 1000, 0)
+                            shutil.copy2("work.wav", wav_data + "/" + str(seq_no) + "_" + (
+                            "_".join([treatment.available_tones[tone] for tone in tones]) + "_" + tone_color.replace(
+                                " ", "_")).replace("#", "X") + ".wav")
 
-                    midi = create_midi([[treatment.available_tones[tone],tone_color] for tone in tones])
-                    data,label = (train_data,train_label) if common_util.drawing(0.7) else (eval_data,eval_label)
-                    fname_prefix = (data+ "/" + str(seq_no) + "_" + "_".join([treatment.available_tones[tone] for tone in tones]) + "_" + tone_color.replace(" ","_")).replace("#","X")
-                    label_fname_prefix = (label+ "/" + str(seq_no) + "_" + "_".join([treatment.available_tones[tone] for tone in tones]) + "_" + tone_color.replace(" ","_")).replace("#","X")
-                    midi.write("work.mid")
-                    convert_to_wave("work.mid")
-                    array, nor_array = treatment.normalization("work.wav", 1000, 0)
-                    #(未)nor_arrayをcsvに
-                    with open(fname_prefix + "_nor.csv","w") as w:
-                        w.write(",".join([str(x) for x in nor_array]))
+                        #(未)nor_arrayをcsvに
+                        with open(fname_prefix + "_nor.csv","w") as w:
+                            w.write(",".join([str(x) for x in nor_array]))
 
-                    #with open(fname_prefix + "_raw.csv","w") as w:
-                    #    w.write(",".join([str(x) for x in array]))
 
-                    with open(label_fname_prefix + "_vector.txt","w") as w:
-                        w.write(",".join([str(x) for x in vector]))
+                        #with open(fname_prefix + "_raw.csv","w") as w:
+                        #    w.write(",".join([str(x) for x in array]))
 
-                    #with open(fname_prefix + "_tone.txt","w") as w:
-                    #    w.write(",".join([str(x) for x in tones]))
+                        with open(label_fname_prefix + "_vector.txt","w") as w:
+                            w.write(",".join([str(x) for x in vector]))
+
+                        #with open(fname_prefix + "_tone.txt","w") as w:
+                        #    w.write(",".join([str(x) for x in tones]))
 
                 cursor = poly
                 tones[cursor] += 1
