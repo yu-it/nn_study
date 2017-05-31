@@ -259,7 +259,7 @@ def load_data(path, data_limit, with_fname=False):
         with open(path + "/" + f) as r:
             ds = r.readlines()
         for d in ds:
-            if len(d) == 0 or re.compile(r'[\d"\']').match(d[0]) is None:
+            if len(d) == 0 or re.compile(r'[-\d"\']').match(d[0]) is None:
                 continue
             if data_count > data_limit and data_limit > 0 :
                 break
